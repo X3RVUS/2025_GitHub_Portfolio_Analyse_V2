@@ -10,7 +10,6 @@ import yaml
 from github import Github, GithubException
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from wordcloud import WordCloud
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 
@@ -63,72 +62,86 @@ def process_and_count_words(text, counter):
         if word not in STOP_WORDS and len(word) >= 3:
             counter[word] += 1
 
-def create_language_chart(language_stats, output_path='languages.png'):
-    """Erstellt ein Balkendiagramm der Sprachen und speichert es als PNG."""
+def create_language_pie_chart(language_stats, output_path='languages.png'):
+    """Erstellt ein Kuchendiagramm der Sprachen und speichert es als PNG."""
     if not language_stats:
         print("Keine Sprachdaten für Diagramm gefunden.")
         return False
     
+    # Daten vorbereiten: Top 6 Sprachen + "Andere"
     sorted_langs = dict(sorted(language_stats.items(), key=lambda item: item[1], reverse=True))
-    total_bytes = sum(sorted_langs.values())
+    top_n = 6
+    top_langs = list(sorted_langs.keys())[:top_n]
+    top_values = [sorted_langs[lang] for lang in top_langs]
     
-    top_langs = list(sorted_langs.keys())[:7]
-    top_percentages = [(sorted_langs[lang] / total_bytes) * 100 for lang in top_langs]
+    if len(sorted_langs) > top_n:
+        other_value = sum(list(sorted_langs.values())[top_n:])
+        top_langs.append('Andere')
+        top_values.append(other_value)
+
+    # Farben definieren
+    colors = ['#14F195', '#9945FF', '#03A9F4', '#FFC107', '#E91E63', '#4CAF50', '#795548']
     
-    fig, ax = plt.subplots(figsize=(8, 4.5))
-    bars = ax.barh(top_langs, top_percentages, color='#0366d6')
+    # Diagramm erstellen
+    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(aspect="equal"))
+    wedges, texts, autotexts = ax.pie(top_values, 
+                                      autopct='%1.1f%%', 
+                                      startangle=140, 
+                                      colors=colors[:len(top_values)],
+                                      pctdistance=0.85,
+                                      wedgeprops=dict(width=0.4, edgecolor='w'))
     
-    ax.invert_yaxis()
-    ax.set_xlabel('Nutzung in %', fontsize=10)
-    ax.set_title('Top Programmiersprachen', fontsize=14, weight='bold')
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.tick_params(axis='y', length=0)
+    # Text-Styling
+    plt.setp(autotexts, size=10, weight="bold", color="white")
     
-    for bar in bars:
-        width = bar.get_width()
-        ax.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width:.1f}%', va='center')
+    # Legende
+    legend = ax.legend(wedges, top_langs,
+              title="Sprachen",
+              loc="center",
+              bbox_to_anchor=(0.5, 0.5),
+              prop={'size': 12},
+              # KORREKTUR: 'color' wurde aus den title_fontproperties entfernt, da es nicht unterstützt wird.
+              title_fontproperties={'size': 14, 'weight': 'bold'})
+    
+    # Farbe der Legendentexte manuell setzen
+    plt.setp(legend.get_texts(), color='black')
+    plt.setp(legend.get_title(), color='black')
 
     plt.tight_layout()
     plt.savefig(output_path, dpi=300, transparent=True)
     plt.close()
     return True
 
-def create_keyword_cloud(keyword_counts, output_path='keywords.png'):
-    """Erstellt eine Wortwolke der Keywords und speichert sie als PNG."""
-    if not keyword_counts:
-        print("Keine Keywords für Wortwolke gefunden.")
-        return False
-
-    wc = WordCloud(width=800, height=400, background_color="white", colormap="magma", max_words=40, prefer_horizontal=0.9)
-    wc.generate_from_frequencies(keyword_counts)
-    wc.to_file(output_path)
-    return True
-
-def generate_pdf_report(data):
-    """Erstellt den finalen PDF-Report aus den gesammelten Daten."""
+def generate_report(data, template_name='modern_template.html'):
+    """Erstellt den finalen Report als HTML und PDF."""
     print("\n---")
-    print("🚀 Generating PDF report...")
+    print("🚀 Generating report...")
 
-    # Grafiken erstellen
-    data['language_chart_path'] = 'languages.png' if create_language_chart(data['language_stats']) else None
-    data['keyword_cloud_path'] = 'keywords.png' if create_keyword_cloud(data['keyword_counts']) else None
+    # Grafik für Sprachen-Chart erstellen
+    data['language_chart_path'] = 'languages.png' if create_language_pie_chart(data['language_stats']) else None
     
     # Template laden und mit Daten füllen
     try:
-        env = Environment(loader=FileSystemLoader('.'))
-        template = env.get_template("template.html")
+        env = Environment(loader=FileSystemLoader('templates/'))
+        template = env.get_template(template_name)
     except Exception as e:
-        print(f"❌ Fehler: Das Template 'template.html' konnte nicht geladen werden. Stelle sicher, dass es im selben Ordner liegt. ({e})")
+        print(f"❌ Fehler: Das Template '{template_name}' im Ordner 'templates' konnte nicht geladen werden. ({e})")
         return
         
     html_out = template.render(data)
     
+    # Dateinamen definieren
+    base_filename = f"GitHub_Report_{data['GITHUB_USER']}"
+    html_filename = f"{base_filename}.html"
+    pdf_filename = f"{base_filename}.pdf"
+
+    # HTML-Datei speichern
+    with open(html_filename, "w", encoding="utf-8") as f:
+        f.write(html_out)
+    print(f"✅ HTML report '{html_filename}' has been successfully created!")
+
     # PDF erstellen
-    pdf_filename = f"GitHub_Report_{data['GITHUB_USER']}.pdf"
     HTML(string=html_out, base_url='.').write_pdf(pdf_filename)
-    
     print(f"✅ PDF report '{pdf_filename}' has been successfully created!")
     print("---")
 
@@ -139,6 +152,7 @@ def generate_pdf_report(data):
 
 def main():
     """Hauptfunktion des Skripts."""
+    # ... (Der Anfang der main-Funktion bleibt unverändert bis zur Datensammlung)
     config = load_or_create_config()
     
     ACCESS_TOKEN = os.environ.get('GITHUB_TOKEN') or config['ACCESS_TOKEN']
@@ -214,11 +228,7 @@ def main():
     print("\n---")
     print("✅ Analysis complete!")
     
-    # --- Konsolenausgabe ---
-    print(f"\n📊 Results for {user.name or GITHUB_USER} (@{GITHUB_USER})")
-    # (Die detaillierte Konsolenausgabe kann hier bei Bedarf beibehalten oder gekürzt werden)
-
-    # --- PDF-Erstellung ---
+    # --- Report-Erstellung ---
     # Daten für das Template bündeln
     report_data = {
         "GITHUB_USER": GITHUB_USER,
@@ -232,11 +242,11 @@ def main():
         "LAST_ACTIVITY": last_activity_date.strftime('%d. %B %Y') if last_activity_date else 'N/A',
         "GENERATION_DATE": datetime.now().strftime('%d. %B %Y'),
         "language_stats": language_stats,
-        "keyword_counts": keyword_counts,
-        "repo_list": sorted(repo_data_list, key=lambda x: x['pushed_at'], reverse=True)[:5] # Top 5 nach letztem Push
+        "top_keywords": keyword_counts.most_common(20), # Top 20 Keywords als Liste übergeben
+        "repo_list": sorted(repo_data_list, key=lambda x: x['pushed_at'], reverse=True)[:5]
     }
     
-    generate_pdf_report(report_data)
+    generate_report(report_data, template_name='modern_template.html')
 
 
 if __name__ == '__main__':
