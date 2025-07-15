@@ -103,24 +103,44 @@
         
         /* Charts */
         .chart-container {
-            background-color: var(--surface);
-            border-radius: 12px;
-            padding: 20px;
-            margin-top: 20px;
-            border: 1px solid #2a2a2a;
+            text-align: center;
         }
 
         .chart-container img {
-            max-width: 100%;
-            border-radius: 8px;
+            max-width: 60%; /* Kuchendiagramm nicht zu riesig machen */
+            height: auto;
+        }
+
+        /* Keyword Tags */
+        .tag-list {
+            background-color: var(--surface);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid #2a2a2a;
+            text-align: center;
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            background-color: #2b2b2b;
+            border: 1px solid #444;
+            border-radius: 20px;
+            transition: all 0.2s ease-in-out;
+        }
+        .tag:hover {
+            transform: translateY(-2px);
+            border-image-source: var(--accent-gradient);
+            border-image-slice: 1;
         }
 
         /* Repository List */
-        .repo-list {
-            list-style: none;
-            padding: 0;
-        }
-        
+        .repo-list { list-style: none; padding: 0; }
         .repo-item {
             background-color: var(--surface);
             border-radius: 12px;
@@ -128,31 +148,12 @@
             margin-bottom: 15px;
             border: 1px solid #2a2a2a;
         }
-
-        .repo-item h4 {
-            margin: 0 0 8px 0;
-            font-size: 18px;
-        }
-
-        .repo-item a {
-            color: var(--text-primary);
-            text-decoration: none;
-            font-weight: 600;
-        }
-        
-        .repo-item p {
-            margin: 0;
-            color: var(--text-secondary);
-            font-size: 14px;
-        }
+        .repo-item h4 { margin: 0 0 8px 0; font-size: 18px; }
+        .repo-item a { color: var(--text-primary); text-decoration: none; font-weight: 600; }
+        .repo-item p { margin: 0; color: var(--text-secondary); font-size: 14px; }
 
         /* Footer */
-        .footer {
-            text-align: center;
-            margin-top: 60px;
-            color: #666;
-            font-size: 12px;
-        }
+        .footer { text-align: center; margin-top: 60px; color: #666; font-size: 12px; }
     </style>
 </head>
 <body>
@@ -190,10 +191,12 @@
             </div>
             {% endif %}
 
-            {% if keyword_cloud_path %}
+            {% if top_keywords %}
             <div class="section-title">Technische Schlüsselwörter</div>
-            <div class="chart-container">
-                <img src="{{ keyword_cloud_path }}" alt="Keyword Cloud">
+            <div class="tag-list">
+                {% for keyword, count in top_keywords %}
+                <span class="tag">{{ keyword }}</span>
+                {% endfor %}
             </div>
             {% endif %}
             
