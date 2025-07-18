@@ -289,7 +289,7 @@ def main():
         "repo_list": sorted(repo_data_list, key=lambda x: x['pushed_at'], reverse=True)[:5]
     }
     
-    generate_report(report_data, template_name='brutal_template.html')
+    generate_report(report_data, template_name='clean_template.html')
 
 
 if __name__ == '__main__':
