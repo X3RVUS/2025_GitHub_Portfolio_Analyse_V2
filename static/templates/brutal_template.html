@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GitHub Report: X3RVUS</title>
+    <title>GitHub Report: {{ GITHUB_USER }}</title>
     <style>
         :root {
             --background-color: #f0f0f0;
@@ -151,92 +151,61 @@
 
     <main>
         <header class="user-header">
-            <img src="https://avatars.githubusercontent.com/u/73318461?v=4" alt="Avatar von X3RVUS">
+            <img src="{{ AVATAR_URL }}" alt="Avatar von {{ GITHUB_USER }}">
             <div>
-                <h1>X3RVUS</h1>
-                <a href="https://github.com/X3RVUS" target="_blank">@X3RVUS</a>
+                <h1>{{ USER_NAME }}</h1>
+                <a href="{{ USER_URL }}" target="_blank">@{{ GITHUB_USER }}</a>
             </div>
         </header>
 
         <section id="stats">
             <div class="stats-grid">
                 <div class="stat-item">
-                    <span class="value">4</span>
+                    <span class="value">{{ REPO_COUNT }}</span>
                     <span class="label">Repositories</span>
                 </div>
                 <div class="stat-item">
-                    <span class="value">17</span>
+                    <span class="value">{{ TOTAL_COMMITS }}</span>
                     <span class="label">Commits (letztes Jahr)</span>
                 </div>
                 <div class="stat-item">
-                    <span class="value"></span>
+                    <span class="value">{{ TOTAL_PRS }}</span>
                     <span class="label">Pull Requests</span>
                 </div>
                  <div class="stat-item">
-                    <span class="value"></span>
+                    <span class="value">{{ TOTAL_ISSUES }}</span>
                     <span class="label">Issues</span>
                 </div>
                 <div class="stat-item">
-                    <span class="value">11K</span>
+                    <span class="value">{{ TOTAL_LOC.split(',')[0] }}K</span>
                     <span class="label">Lines of Code</span>
                 </div>
             </div>
         </section>
 
-        
+        {% if commit_heatmap_path %}
+        <section id="heatmap">
+            <h2>Commit-Aktivität (Letztes Jahr)</h2>
+            <img src="{{ commit_heatmap_path }}" alt="Commit Heatmap">
+        </section>
+        {% endif %}
 
         <section id="details">
             <div class="details-grid">
                 <div>
                     <h2>Top Sprachen</h2>
-                    
-                        <img src="languages.png" alt="Sprachen-Diagramm">
-                    
+                    {% if language_chart_path %}
+                        <img src="{{ language_chart_path }}" alt="Sprachen-Diagramm">
+                    {% else %}
+                        <p>Keine Daten.</p>
+                    {% endif %}
                 </div>
                 <div>
                     <h2>Schlüsselwörter</h2>
                     <ul class="keywords-list">
-                        
-                            <li>script</li>
-                        
-                            <li>token</li>
-                        
-                            <li>install</li>
-                        
-                            <li>analysis</li>
-                        
-                            <li>ruby</li>
-                        
-                            <li>public</li>
-                        
-                            <li>repositories</li>
-                        
-                            <li>access</li>
-                        
-                            <li>benchmark</li>
-                        
-                            <li>screener</li>
-                        
-                            <li>scripts</li>
-                        
-                            <li>python</li>
-                        
-                            <li>terminal</li>
-                        
-                            <li>lines</li>
-                        
-                            <li>activity</li>
-                        
-                            <li>personal</li>
-                        
-                            <li>requests</li>
-                        
-                            <li>yml</li>
-                        
-                            <li>counts</li>
-                        
-                            <li>time</li>
-                        
+                        {% for keyword, count in top_keywords %}
+                            <li>{{ keyword }}</li>
+                        {% endfor %}
                     </ul>
                 </div>
             </div>
@@ -245,52 +214,24 @@
         <section id="repositories">
             <h2>Top Repositories (nach Sternen)</h2>
             <div class="repo-list">
-                
+                {% for repo in repo_list %}
                     <article class="repo-item">
-                        <h3><a href="https://github.com/X3RVUS/2025_Open_Dev_Setup" target="_blank">2025_Open_Dev_Setup</a></h3>
-                        <p>Keine Beschreibung vorhanden.</p>
+                        <h3><a href="{{ repo.url }}" target="_blank">{{ repo.name }}</a></h3>
+                        <p>{{ repo.description }}</p>
                         <div class="repo-meta">
-                            <span>⭐  Stars</span>
-                            <span>🍴  Forks</span>
-                            <span>📄 </span>
+                            <span>⭐ {{ repo.stars }} Stars</span>
+                            <span>🍴 {{ repo.forks }} Forks</span>
+                            <span>📄 {{ repo.license }}</span>
                         </div>
                     </article>
-                
-                    <article class="repo-item">
-                        <h3><a href="https://github.com/X3RVUS/2025_GitHub_Portfolio_Analyse_V2" target="_blank">2025_GitHub_Portfolio_Analyse_V2</a></h3>
-                        <p>Keine Beschreibung vorhanden.</p>
-                        <div class="repo-meta">
-                            <span>⭐  Stars</span>
-                            <span>🍴  Forks</span>
-                            <span>📄 </span>
-                        </div>
-                    </article>
-                
-                    <article class="repo-item">
-                        <h3><a href="https://github.com/X3RVUS/2025_GitHub_Portfolio_Analyse" target="_blank">2025_GitHub_Portfolio_Analyse</a></h3>
-                        <p>Keine Beschreibung vorhanden.</p>
-                        <div class="repo-meta">
-                            <span>⭐  Stars</span>
-                            <span>🍴  Forks</span>
-                            <span>📄 </span>
-                        </div>
-                    </article>
-                
-                    <article class="repo-item">
-                        <h3><a href="https://github.com/X3RVUS/2025_URL_Screener" target="_blank">2025_URL_Screener</a></h3>
-                        <p>Keine Beschreibung vorhanden.</p>
-                        <div class="repo-meta">
-                            <span>⭐  Stars</span>
-                            <span>🍴  Forks</span>
-                            <span>📄 </span>
-                        </div>
-                    </article>
-                
+                {% else %}
+                    <p>Keine Repositories gefunden.</p>
+                {% endfor %}
             </div>
         </section>
 
         <footer>
-            <p>Report generiert am 19. July 2025</p>
+            <p>Report generiert am {{ GENERATION_DATE }}</p>
         </footer>
 
     </main>
