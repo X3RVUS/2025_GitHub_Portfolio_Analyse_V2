@@ -84,21 +84,22 @@ def check_and_prepare_paths():
 # ===================================================================
 
 def create_commit_history_chart(weekly_commits):
-    """Erstellt ein Balkendiagramm des Commit-Verlaufs und speichert es."""
+    """Erstellt ein Liniendiagramm des Commit-Verlaufs und speichert es."""
     if not weekly_commits:
         return None
 
     output_path = os.path.join(BASE_OUTPUT_DIR, 'commit_history.png')
     
-    # Sortiere die Daten nach dem Wochen-String (z.B. "2025-29")
     sorted_weeks = sorted(weekly_commits.items())
     labels = [week for week, count in sorted_weeks]
     values = [count for week, count in sorted_weeks]
 
     plt.figure(figsize=(15, 6))
-    bars = plt.bar(labels, values, color='#007bff') # Blauer Akzent
     
-    # Nur jede 4. Woche auf der X-Achse anzeigen, um Überlappung zu vermeiden
+    # GEÄNDERT: plt.bar() wurde durch plt.plot() und plt.fill_between() ersetzt
+    plt.plot(labels, values, color='#007bff', marker='.', linestyle='-', linewidth=2)
+    plt.fill_between(labels, values, color='#007bff', alpha=0.1) # Fügt einen leichten Fülleffekt hinzu
+
     plt.xticks(ticks=[i for i, _ in enumerate(labels) if i % 4 == 0], 
                labels=[label for i, label in enumerate(labels) if i % 4 == 0], 
                rotation=45, ha="right", fontsize=10)
@@ -106,7 +107,7 @@ def create_commit_history_chart(weekly_commits):
     plt.title("Commit-Verlauf (letztes Jahr)", fontsize=16, weight='bold')
     plt.ylabel("Anzahl Commits", fontsize=12)
     plt.grid(axis='y', linestyle='--', alpha=0.6)
-    plt.tight_layout() # Passt das Layout an, um Überlappungen zu vermeiden
+    plt.tight_layout()
     plt.savefig(output_path, dpi=150, bbox_inches='tight')
     plt.close()
     return output_path
