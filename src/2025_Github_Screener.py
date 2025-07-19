@@ -12,6 +12,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
+from collections import Counter, defaultdict
 
 # ===================================================================
 # SETUP & CONFIGURATION
@@ -31,8 +32,8 @@ TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'static','templates')
 BASE_OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'output')
 
 # Template Settings
-BASE_TEMPLATE = 'base_template_2.html'
-CSS_THEME = 'mordern_white_2.css' 
+BASE_TEMPLATE = 'base_template_3.html'
+CSS_THEME = 'mordern_white_3.css' 
 
 # ===================================================================
 # NEU: Funktion zur Überprüfung der Pfade
@@ -82,6 +83,34 @@ def check_and_prepare_paths():
 # HELPER FUNCTIONS (Analysis & PDF Generation)
 # ===================================================================
 
+def create_commit_history_chart(weekly_commits):
+    """Erstellt ein Balkendiagramm des Commit-Verlaufs und speichert es."""
+    if not weekly_commits:
+        return None
+
+    output_path = os.path.join(BASE_OUTPUT_DIR, 'commit_history.png')
+    
+    # Sortiere die Daten nach dem Wochen-String (z.B. "2025-29")
+    sorted_weeks = sorted(weekly_commits.items())
+    labels = [week for week, count in sorted_weeks]
+    values = [count for week, count in sorted_weeks]
+
+    plt.figure(figsize=(15, 6))
+    bars = plt.bar(labels, values, color='#007bff') # Blauer Akzent
+    
+    # Nur jede 4. Woche auf der X-Achse anzeigen, um Überlappung zu vermeiden
+    plt.xticks(ticks=[i for i, _ in enumerate(labels) if i % 4 == 0], 
+               labels=[label for i, label in enumerate(labels) if i % 4 == 0], 
+               rotation=45, ha="right", fontsize=10)
+
+    plt.title("Commit-Verlauf (letztes Jahr)", fontsize=16, weight='bold')
+    plt.ylabel("Anzahl Commits", fontsize=12)
+    plt.grid(axis='y', linestyle='--', alpha=0.6)
+    plt.tight_layout() # Passt das Layout an, um Überlappungen zu vermeiden
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    return output_path
+
 def load_stop_words(filename):
     """Lädt Stoppwörter aus der angegebenen Datei."""
     if not os.path.exists(filename):
@@ -117,7 +146,6 @@ def process_and_count_words(text, counter, stop_words):
         if word not in stop_words and len(word) >= 3:
             counter[word] += 1
 
-# GEÄNDERT: Die Grafik wird jetzt im `output` Ordner gespeichert
 def create_language_pie_chart(language_stats):
     """Erstellt ein Kuchendiagramm der Sprachen und speichert es als PNG im Output-Ordner."""
     output_path = os.path.join(BASE_OUTPUT_DIR, 'languages.png')
@@ -165,14 +193,12 @@ def generate_report(data, base_template_file, css_file):
     if chart_path:
         data['language_chart_path'] = os.path.basename(chart_path)
     
-    # NEU: Den relativen Pfad zur CSS-Datei für die HTML-Datei erstellen
     # Von 'output/report.html' zu 'static/css/theme.css'
     css_path_for_html = f'../static/css/{css_file}'
     data['css_file_path'] = css_path_for_html
 
     try:
         env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
-        # GEÄNDERT: Lade das universelle Grundgerüst
         template = env.get_template(base_template_file)
     except Exception as e:
         print(f"❌ Fehler: Das Template '{base_template_file}' im Ordner '{TEMPLATE_DIR}' konnte nicht geladen werden. ({e})")
@@ -221,14 +247,22 @@ def main():
     try:
         user = g.get_user(GITHUB_USER)
     except GithubException as e:
-        # ... (Fehlerbehandlung bleibt gleich) ...
+        if e.status == 401:
+             print(f"❌ Fehler: Ungültiger GitHub-Token.")
+        else:
+             print(f"❌ Fehler beim Abrufen des Benutzers: {e}")
         sys.exit()
 
     # --- Datensammlung ---
-    total_lines_of_code, total_lines_of_docs, total_commits = 0, 0, 0
+    total_lines_of_code, total_commits = 0, 0
     language_stats, keyword_counts = Counter(), Counter()
-    repo_names, repo_data_list = [], []
-    first_activity_date, last_activity_date = None, None
+    
+    from collections import defaultdict
+    weekly_commits = defaultdict(int)
+    topic_counts = Counter()
+    
+    repo_data_list = []
+    last_activity_date = None
 
     print("Fetching all public repositories...")
     repos = list(user.get_repos())
@@ -237,20 +271,21 @@ def main():
     print("---")
 
     for repo in tqdm(repos, desc="Analyzing Repositories"):
-        repo_names.append(repo.full_name)
-        if first_activity_date is None or repo.created_at < first_activity_date: first_activity_date = repo.created_at
-        if last_activity_date is None or repo.pushed_at > last_activity_date: last_activity_date = repo.pushed_at
+        if last_activity_date is None or repo.pushed_at > last_activity_date:
+            last_activity_date = repo.pushed_at
         
         process_and_count_words(re.sub(r'[-_]', ' ', repo.name), keyword_counts, stop_words)
 
         try:
+            for topic in repo.get_topics():
+                topic_counts[topic] += 1
+            
             for lang, byte_count in repo.get_languages().items():
                 language_stats[lang] += byte_count
             
             try:
                 readme = repo.get_readme()
                 readme_content = base64.b64decode(readme.content).decode('utf-8', errors='ignore')
-                total_lines_of_docs += len(readme_content.splitlines())
                 process_and_count_words(readme_content, keyword_counts, stop_words)
             except GithubException: pass
 
@@ -261,43 +296,62 @@ def main():
                         blob_content = repo.get_git_blob(element.sha).content
                         decoded_content = base64.b64decode(blob_content).decode('utf-8', errors='ignore')
                         total_lines_of_code += len(decoded_content.splitlines())
-                        
-                        process_and_count_words(readme_content, keyword_counts, stop_words)
                     except Exception: pass
             
             commit_stats = repo.get_stats_commit_activity()
             if commit_stats:
                 total_commits += sum(stat.total for stat in commit_stats)
+                # NEU: Wöchentliche Commit-Daten aggregieren
+                for stat in commit_stats:
+                    week_date_str = stat.week.strftime('%Y-%U') # Format "Jahr-Wochennummer"
+                    weekly_commits[week_date_str] += stat.total
             
+            # GEÄNDERT: repo_data_list mit mehr Details anreichern
             repo_data_list.append({
                 "name": repo.name, 
                 "url": repo.html_url,
                 "description": repo.description or "Keine Beschreibung vorhanden.",
-                "pushed_at": repo.pushed_at
+                "pushed_at": repo.pushed_at,
+                "stars": repo.stargazers_count,
+                "forks": repo.forks_count,
+                "language": repo.language,
+                "license_name": repo.license.name if repo.license else "N/A"
             })
 
         except GithubException as e:
             print(f"\nCould not fully analyze repository '{repo.full_name}': {e.data.get('message', 'API Error')}")
     
-    print("\n---")
+    clear_screen()
     print("✅ Analysis complete!")
     
     # --- Report-Erstellung ---
-    # Daten für das Template bündeln
+    commit_chart_path = create_commit_history_chart(weekly_commits)
+
     report_data = {
+        # Profildaten
         "GITHUB_USER": GITHUB_USER,
         "USER_NAME": user.name or GITHUB_USER,
         "USER_URL": user.html_url,
         "AVATAR_URL": user.avatar_url,
-        "REPO_COUNT": repo_count,
+        "USER_BIO": user.bio or "Keine Biografie vorhanden.",
+        "USER_LOCATION": user.location,
+        "USER_COMPANY": user.company,
+        "USER_FOLLOWERS": f"{user.followers:,}",
+        "USER_CREATED_AT": user.created_at.strftime('%d. %B %Y'),
+        "GENERATION_DATE": datetime.now().strftime('%d. %B %Y'),
+
+        # KPI-Statistiken
+        "REPO_COUNT": f"{repo_count:,}",
         "TOTAL_COMMITS": f"{total_commits:,}",
         "TOTAL_LOC": f"{total_lines_of_code:,}",
-        "FIRST_ACTIVITY": first_activity_date.strftime('%d. %B %Y') if first_activity_date else 'N/A',
         "LAST_ACTIVITY": last_activity_date.strftime('%d. %B %Y') if last_activity_date else 'N/A',
-        "GENERATION_DATE": datetime.now().strftime('%d. %B %Y'),
+
+        # Diagramm-Daten & Listen
         "language_stats": language_stats,
-        "top_keywords": keyword_counts.most_common(20), # Top 20 Keywords als Liste übergeben
-        "repo_list": sorted(repo_data_list, key=lambda x: x['pushed_at'], reverse=True)[:5]
+        "top_keywords": keyword_counts.most_common(20),
+        "commit_chart_path": os.path.basename(commit_chart_path) if commit_chart_path else None,
+        "top_topics": topic_counts.most_common(15),
+        "most_starred_repos": sorted(repo_data_list, key=lambda x: x['stars'], reverse=True)[:5]
     }
     
     generate_report(report_data, base_template_file=BASE_TEMPLATE, css_file=CSS_THEME)
