@@ -30,6 +30,10 @@ TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'static','templates')
 # --- Pfad zum Ausgabe-Verzeichnis ---
 BASE_OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'output')
 
+# Template Settings
+BASE_TEMPLATE = 'base_template_2.html'
+CSS_THEME = 'mordern_white_2.css' 
+
 # ===================================================================
 # NEU: Funktion zur Überprüfung der Pfade
 # ===================================================================
@@ -150,8 +154,8 @@ def create_language_pie_chart(language_stats):
     return output_path
 
 
-# GEÄNDERT: Alle Ausgabedateien landen im `output` Ordner
-def generate_report(data, template_name='modern_template.html'):
+# Ersetze die komplette Funktion
+def generate_report(data, base_template_file, css_file):
     """Erstellt den finalen Report als HTML und PDF."""
     print("\n---")
     print("🚀 Report wird erstellt...")
@@ -160,14 +164,21 @@ def generate_report(data, template_name='modern_template.html'):
     chart_path = create_language_pie_chart(data['language_stats'])
     if chart_path:
         data['language_chart_path'] = os.path.basename(chart_path)
+    
+    # NEU: Den relativen Pfad zur CSS-Datei für die HTML-Datei erstellen
+    # Von 'output/report.html' zu 'static/css/theme.css'
+    css_path_for_html = f'../static/css/{css_file}'
+    data['css_file_path'] = css_path_for_html
 
     try:
         env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
-        template = env.get_template(template_name)
+        # GEÄNDERT: Lade das universelle Grundgerüst
+        template = env.get_template(base_template_file)
     except Exception as e:
-        print(f"❌ Fehler: Das Template '{template_name}' im Ordner '{TEMPLATE_DIR}' konnte nicht geladen werden. ({e})")
+        print(f"❌ Fehler: Das Template '{base_template_file}' im Ordner '{TEMPLATE_DIR}' konnte nicht geladen werden. ({e})")
         return
         
+    # Die Daten, inkl. dem CSS-Pfad, werden in das Template eingefügt
     html_out = template.render(data)
     
     # Dateinamen definieren (im Output-Verzeichnis)
@@ -289,7 +300,8 @@ def main():
         "repo_list": sorted(repo_data_list, key=lambda x: x['pushed_at'], reverse=True)[:5]
     }
     
-    generate_report(report_data, template_name='clean_template.html')
+    generate_report(report_data, base_template_file=BASE_TEMPLATE, css_file=CSS_THEME)
+
 
 
 if __name__ == '__main__':

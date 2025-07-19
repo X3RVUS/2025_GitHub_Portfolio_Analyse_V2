@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Portfolio Analysis - {{ USER_NAME }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ css_file_path }}">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header class="main-header">
+            <div class="header-title">
+                <h1>Portfolio Analysis</h1>
+                <p>Status für <a href="{{ USER_URL }}" target="_blank">@{{ GITHUB_USER }}</a></p>
+            </div>
+            <img src="{{ AVATAR_URL }}" alt="User Avatar" class="avatar">
+        </header>
+
+        <main class="main-grid">
+            <section class="card kpi-card">
+                <div class="kpi">
+                    <span class="kpi-value">{{ REPO_COUNT }}</span>
+                    <span class="kpi-label">Repositories</span>
+                </div>
+                <div class="kpi">
+                    <span class="kpi-value">{{ TOTAL_COMMITS }}</span>
+                    <span class="kpi-label">Total Commits</span>
+                </div>
+                <div class="kpi">
+                    <span class="kpi-value">{{ TOTAL_LOC }}</span>
+                    <span class="kpi-label">Lines of Code</span>
+                </div>
+                <div class="kpi">
+                    <span class="kpi-value small-text">{{ LAST_ACTIVITY }}</span>
+                    <span class="kpi-label">Last Activity</span>
+                </div>
+            </section>
+
+            {% if language_chart_path %}
+            <section class="card chart-card">
+                <h2 class="card-title">Languages</h2>
+                <div class="chart-container">
+                    <img src="{{ language_chart_path }}" alt="Language Statistics Chart">
+                </div>
+            </section>
+            {% endif %}
+
+            {% if repo_list %}
+            <section class="card repo-card">
+                <h2 class="card-title">Significant Projects</h2>
+                <ul class="repo-list">
+                    {% for repo in repo_list %}
+                    <li class="repo-item">
+                        <a href="{{ repo.url }}" target="_blank">{{ repo.name }}</a>
+                        <p>{{ repo.description }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if top_keywords %}
+            <section class="card keywords-card">
+                <h2 class="card-title">Technical Keywords</h2>
+                <div class="tag-list">
+                    {% for keyword, count in top_keywords %}
+                    <span class="tag">{{ keyword }}</span>
+                    {% endfor %}
+                </div>
+            </section>
+            {% endif %}
+        </main>
+        
+        <footer class="main-footer">
+            <p>Report generiert am {{ GENERATION_DATE }}</p>
+        </footer>
+    </div>
+</body>
+</html>
