@@ -89,71 +89,50 @@ def check_and_prepare_paths():
 # HELPER FUNCTIONS (Analysis & PDF Generation)
 # ===================================================================
 
-def create_commit_history_chart(weekly_commits):
-    """Erstellt eine GitHub-ähnliche Heatmap des Commit-Verlaufs."""
-    if not weekly_commits:
-        return None
+def create_commit_history_chart(daily_commits):
+    """Erstellt eine GitHub-ähnliche Heatmap, die immer das aktuelle Jahr anzeigt."""
+    if not daily_commits:
+        # Erstelle ein leeres Dictionary, falls es keine Commits gibt, um Fehler zu vermeiden
+        daily_commits = {}
 
     output_path = os.path.join(BASE_OUTPUT_DIR, 'commit_history.png')
 
-    # Umwandlung der Wochen-Commits in Tages-Daten (vereinfachte Annahme: Commits sind am ersten Tag der Woche)
-    all_days = pd.date_range(end=datetime.now(), periods=365, freq='D')
-    commit_series = pd.Series(0, index=all_days)
+    # === KORREKTUR: Erzwinge die Anzeige des aktuellen Jahres ===
+    
+    # 1. Bestimme das aktuelle Jahr
+    current_year = datetime.now().year
 
-    for week_str, count in weekly_commits.items():
-        try:
-            # Annahme: Die Woche startet sonntags ('%Y-%U')
-            week_start_date = datetime.strptime(week_str + '-0', "%Y-%U-%w")
-            if week_start_date in commit_series.index:
-                commit_series[week_start_date] = count
-        except ValueError:
-            continue # Ignoriere fehlerhafte Wochenformate
+    # 2. Erstelle einen vollständigen Datumsindex für das gesamte aktuelle Jahr
+    all_days_of_year = pd.date_range(start=f'{current_year}-01-01', end=f'{current_year}-12-31', freq='D')
 
-    # Diagramm mit calmap erstellen
+    # 3. Erstelle eine leere Serie für das ganze Jahr, initialisiert mit 0
+    year_series = pd.Series(0, index=all_days_of_year)
+
+    # 4. Fülle die Serie mit den tatsächlichen Commit-Daten
+    # Nur die Tage, an denen Commits stattfanden, werden überschrieben. Der Rest bleibt 0.
+    commit_series = pd.Series(daily_commits)
+    year_series.update(commit_series)
+    
+    # Farbschema für die Grafik
+    cmap = plt.get_cmap('Greens')
+
     plt.figure(figsize=(12, 2.5))
+    
+    # 5. Zeichne die Grafik explizit für das aktuelle Jahr
     calmap.yearplot(
-        commit_series, 
-        year=datetime.now().year,
-        cmap='viridis',  # Ein Farbschema, das dem von GitHub ähnelt
+        year_series,  # Wir verwenden die für das ganze Jahr vorbereitete Serie
+        year=current_year, # Wir sagen calmap wieder, welches Jahr es sein soll
+        cmap=cmap,
         linewidth=2,
         daylabels='MTWTFSS',
         dayticks=[0, 2, 4, 6],
         fillcolor='#ededed' # Farbe für Tage ohne Commits
     )
     
-    plt.title("Commit-Verlauf (Letztes Jahr)", fontsize=16, weight='bold', pad=20)
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.title(f"Commit-Verlauf ({current_year})", fontsize=16, weight='bold', pad=20)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight', transparent=True)
     plt.close()
 
-    return output_path
-
-def create_commit_history_chart_old(weekly_commits):
-    """Erstellt ein Liniendiagramm des Commit-Verlaufs und speichert es."""
-    if not weekly_commits:
-        return None
-
-    output_path = os.path.join(BASE_OUTPUT_DIR, 'commit_history.png')
-    
-    sorted_weeks = sorted(weekly_commits.items())
-    labels = [week for week, count in sorted_weeks]
-    values = [count for week, count in sorted_weeks]
-
-    plt.figure(figsize=(15, 6))
-    
-    # plt.bar() wurde durch plt.plot() und plt.fill_between() ersetzt
-    plt.plot(labels, values, color='#007bff', marker='.', linestyle='-', linewidth=2)
-    plt.fill_between(labels, values, color='#007bff', alpha=0.1) # Fügt einen leichten Fülleffekt hinzu
-
-    plt.xticks(ticks=[i for i, _ in enumerate(labels) if i % 4 == 0], 
-               labels=[label for i, label in enumerate(labels) if i % 4 == 0], 
-               rotation=45, ha="right", fontsize=10)
-
-    plt.title("Commit-Verlauf (letztes Jahr)", fontsize=16, weight='bold')
-    plt.ylabel("Anzahl Commits", fontsize=12)
-    plt.grid(axis='y', linestyle='--', alpha=0.6)
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches='tight')
-    plt.close()
     return output_path
 
 def load_stop_words(filename):
@@ -308,11 +287,8 @@ def main():
     # --- Datensammlung ---
     total_lines_of_code, total_commits = 0, 0
     language_stats, keyword_counts = Counter(), Counter()
-    
-    from collections import defaultdict
-    weekly_commits = defaultdict(int)
+    daily_commits = defaultdict(int)
     topic_counts = Counter()
-    
     repo_data_list = []
     last_activity_date = None
 
@@ -350,13 +326,17 @@ def main():
                         total_lines_of_code += len(decoded_content.splitlines())
                     except Exception: pass
             
-            commit_stats = repo.get_stats_commit_activity()
-            if commit_stats:
-                total_commits += sum(stat.total for stat in commit_stats)
-                # Wöchentliche Commit-Daten aggregieren
-                for stat in commit_stats:
-                    week_date_str = stat.week.strftime('%Y-%U') # Format "Jahr-Wochennummer"
-                    weekly_commits[week_date_str] += stat.total
+            try:
+                # Hole alle Commits des authentifizierten Benutzers für dieses Repo
+                commits = repo.get_commits(author=user)
+                # Zähle die Commits pro Tag
+                for commit in commits:
+                    commit_date = commit.commit.author.date.date() # Nur das Datum, ohne Zeit
+                    daily_commits[commit_date] += 1
+                    total_commits += 1 # Gesamtzahl der Commits erhöhen
+            except GithubException:
+            # Manche Repos (z.B. leere) können hier einen Fehler werfen
+                continue
             
             # repo_data_list mit mehr Details anreichern
             repo_data_list.append({
@@ -377,7 +357,7 @@ def main():
     print("✅ Analysis complete!")
     
     # --- Report-Erstellung ---
-    commit_chart_path = create_commit_history_chart(weekly_commits)
+    commit_chart_path = create_commit_history_chart(daily_commits)
 
     report_data = {
         # Profildaten
