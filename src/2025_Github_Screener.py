@@ -7,9 +7,11 @@ from datetime import datetime
 
 # Third-party libraries
 import yaml
+import pandas as pd
+import matplotlib.pyplot as plt
+import calmap
 from github import Github, GithubException
 from tqdm import tqdm
-import matplotlib.pyplot as plt
 from jinja2 import Environment, FileSystemLoader
 from weasyprint import HTML
 from collections import Counter, defaultdict
@@ -88,6 +90,44 @@ def check_and_prepare_paths():
 # ===================================================================
 
 def create_commit_history_chart(weekly_commits):
+    """Erstellt eine GitHub-ähnliche Heatmap des Commit-Verlaufs."""
+    if not weekly_commits:
+        return None
+
+    output_path = os.path.join(BASE_OUTPUT_DIR, 'commit_history.png')
+
+    # Umwandlung der Wochen-Commits in Tages-Daten (vereinfachte Annahme: Commits sind am ersten Tag der Woche)
+    all_days = pd.date_range(end=datetime.now(), periods=365, freq='D')
+    commit_series = pd.Series(0, index=all_days)
+
+    for week_str, count in weekly_commits.items():
+        try:
+            # Annahme: Die Woche startet sonntags ('%Y-%U')
+            week_start_date = datetime.strptime(week_str + '-0', "%Y-%U-%w")
+            if week_start_date in commit_series.index:
+                commit_series[week_start_date] = count
+        except ValueError:
+            continue # Ignoriere fehlerhafte Wochenformate
+
+    # Diagramm mit calmap erstellen
+    plt.figure(figsize=(12, 2.5))
+    calmap.yearplot(
+        commit_series, 
+        year=datetime.now().year,
+        cmap='viridis',  # Ein Farbschema, das dem von GitHub ähnelt
+        linewidth=2,
+        daylabels='MTWTFSS',
+        dayticks=[0, 2, 4, 6],
+        fillcolor='#ededed' # Farbe für Tage ohne Commits
+    )
+    
+    plt.title("Commit-Verlauf (Letztes Jahr)", fontsize=16, weight='bold', pad=20)
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+
+    return output_path
+
+def create_commit_history_chart_old(weekly_commits):
     """Erstellt ein Liniendiagramm des Commit-Verlaufs und speichert es."""
     if not weekly_commits:
         return None
