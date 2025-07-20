@@ -31,12 +31,16 @@ TEMPLATE_DIR = os.path.join(PROJECT_ROOT, 'static','templates')
 # --- Pfad zum Ausgabe-Verzeichnis ---
 BASE_OUTPUT_DIR = os.path.join(PROJECT_ROOT, 'output')
 
-# Template Settings
-BASE_TEMPLATE = 'base_template_3.html'
-CSS_THEME = 'mordern_white_3.css' 
+# --- Sehr leicht erweiterbare Kombinationen ---
+TEMPLATES_TO_GENERATE = [
+    {"template": "base_template_1.html", "css": "modern_white_1.css"},
+    {"template": "base_template_2.html", "css": "modern_white_2.css"},
+    {"template": "base_template_3.html", "css": "modern_white_3.css"},
+    {"template": "base_template_4.html", "css": "modern_white_4.css"},
+]
 
 # ===================================================================
-# NEU: Funktion zur Überprüfung der Pfade
+# Funktion zur Überprüfung der Pfade
 # ===================================================================
 
 def clear_screen():
@@ -96,7 +100,7 @@ def create_commit_history_chart(weekly_commits):
 
     plt.figure(figsize=(15, 6))
     
-    # GEÄNDERT: plt.bar() wurde durch plt.plot() und plt.fill_between() ersetzt
+    # plt.bar() wurde durch plt.plot() und plt.fill_between() ersetzt
     plt.plot(labels, values, color='#007bff', marker='.', linestyle='-', linewidth=2)
     plt.fill_between(labels, values, color='#007bff', alpha=0.1) # Fügt einen leichten Fülleffekt hinzu
 
@@ -183,20 +187,22 @@ def create_language_pie_chart(language_stats):
     return output_path
 
 
-# Ersetze die komplette Funktion
 def generate_report(data, base_template_file, css_file):
-    """Erstellt den finalen Report als HTML und PDF."""
-    print("\n---")
-    print("🚀 Report wird erstellt...")
-
-    # Grafik für Sprachen-Chart erstellen und Pfad für Template speichern
-    chart_path = create_language_pie_chart(data['language_stats'])
-    if chart_path:
-        data['language_chart_path'] = os.path.basename(chart_path)
+    """Erstellt den finalen Report als HTML und PDF mit dynamischem Dateinamen."""
     
-    # Von 'output/report.html' zu 'static/css/theme.css'
-    css_path_for_html = f'../static/css/{css_file}'
-    data['css_file_path'] = css_path_for_html
+    # Basisnamen ohne Erweiterung extrahieren (z.B. "base_template_1")
+    template_name_base = os.path.splitext(base_template_file)[0]
+
+    print(f"\n--- Erstelle Report für '{template_name_base}' ---")
+
+    # Grafik für Sprachen-Chart erstellen (nur einmal pro Skriptlauf nötig)
+    if 'language_chart_path' not in data:
+        chart_path = create_language_pie_chart(data['language_stats'])
+        if chart_path:
+            data['language_chart_path'] = os.path.basename(chart_path)
+    
+    # Pfad zur CSS-Datei für das HTML-Template
+    data['css_file_path'] = f'../static/css/{css_file}'
 
     try:
         env = Environment(loader=FileSystemLoader(TEMPLATE_DIR))
@@ -205,23 +211,28 @@ def generate_report(data, base_template_file, css_file):
         print(f"❌ Fehler: Das Template '{base_template_file}' im Ordner '{TEMPLATE_DIR}' konnte nicht geladen werden. ({e})")
         return
         
-    # Die Daten, inkl. dem CSS-Pfad, werden in das Template eingefügt
     html_out = template.render(data)
     
-    # Dateinamen definieren (im Output-Verzeichnis)
-    base_filename = os.path.join(BASE_OUTPUT_DIR, f"GitHub_Report_{data['GITHUB_USER']}")
+    # === ANPASSUNG FÜR DATEINAMEN ===
+    # Der Dateiname enthält jetzt den Namen des Templates.
+    base_filename = os.path.join(
+        BASE_OUTPUT_DIR, 
+        f"GitHub_Report_{data['GITHUB_USER']}_{template_name_base}"
+    )
     html_filename = f"{base_filename}.html"
     pdf_filename = f"{base_filename}.pdf"
 
     # HTML-Datei speichern
     with open(html_filename, "w", encoding="utf-8") as f:
         f.write(html_out)
-    print(f"✅ HTML-Report '{html_filename}' wurde erstellt!")
+    print(f"✅ HTML-Report '{os.path.basename(html_filename)}' wurde erstellt!")
 
-    # PDF erstellen (base_url zeigt auf den Output-Ordner, um das Bild zu finden)
-    HTML(string=html_out, base_url=BASE_OUTPUT_DIR).write_pdf(pdf_filename)
-    print(f"✅ PDF-Report '{pdf_filename}' wurde erstellt!")
-    print("---")
+    # PDF erstellen
+    try:
+        HTML(string=html_out, base_url=BASE_OUTPUT_DIR).write_pdf(pdf_filename)
+        print(f"✅ PDF-Report '{os.path.basename(pdf_filename)}' wurde erstellt!")
+    except Exception as e:
+        print(f"❌ Fehler beim Erstellen der PDF für '{template_name_base}': {e}")
 
 
 # ===================================================================
@@ -302,12 +313,12 @@ def main():
             commit_stats = repo.get_stats_commit_activity()
             if commit_stats:
                 total_commits += sum(stat.total for stat in commit_stats)
-                # NEU: Wöchentliche Commit-Daten aggregieren
+                # Wöchentliche Commit-Daten aggregieren
                 for stat in commit_stats:
                     week_date_str = stat.week.strftime('%Y-%U') # Format "Jahr-Wochennummer"
                     weekly_commits[week_date_str] += stat.total
             
-            # GEÄNDERT: repo_data_list mit mehr Details anreichern
+            # repo_data_list mit mehr Details anreichern
             repo_data_list.append({
                 "name": repo.name, 
                 "url": repo.html_url,
@@ -354,10 +365,16 @@ def main():
         "top_topics": topic_counts.most_common(15),
         "most_starred_repos": sorted(repo_data_list, key=lambda x: x['stars'], reverse=True)[:5]
     }
+   
+# --- Iteriere über alle konfigurierten Templates und erstelle Reports ---
+    for theme in TEMPLATES_TO_GENERATE:
+        generate_report(
+            data=report_data, 
+            base_template_file=theme["template"], 
+            css_file=theme["css"]
+        )
     
-    generate_report(report_data, base_template_file=BASE_TEMPLATE, css_file=CSS_THEME)
-
-
+    print("\n\n🎉 Alle Reports wurden erfolgreich generiert!")
 
 if __name__ == '__main__':
     main()

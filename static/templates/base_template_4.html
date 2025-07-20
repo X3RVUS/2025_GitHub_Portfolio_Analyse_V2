@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8" />
+    <title>Developer Profile - {{ USER_NAME }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ css_file_path }}" />
+</head>
+<body>
+    <div class="container">
+        <header class="profile-header">
+            <img src="{{ AVATAR_URL }}" alt="User Avatar" class="avatar" />
+            <div class="profile-info">
+                <h1>{{ USER_NAME }}</h1>
+                <a href="{{ USER_URL }}" target="_blank" class="profile-username">@{{ GITHUB_USER }}</a>
+                <p class="profile-bio">{{ USER_BIO }}</p>
+            </div>
+        </header>
+
+        <section class="stats-overview">
+            <div class="stat-item">
+                <span class="stat-value">{{ REPO_COUNT }}</span>
+                <span class="stat-label">Repositories</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">{{ TOTAL_COMMITS }}</span>
+                <span class="stat-label">Total Commits</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">{{ TOTAL_LOC }}</span>
+                <span class="stat-label">Lines of Code</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-value">{{ LAST_ACTIVITY }}</span>
+                <span class="stat-label">Letzte Aktivität</span>
+            </div>
+        </section>
+
+        <hr class="divider" />
+
+        <main class="content-grid">
+            <div class="main-column">
+                {% if commit_chart_path %}
+                <section class="card">
+                    <h2 class="card-title">Commit Verlauf (Letztes Jahr)</h2>
+                    <div class="chart-wrapper">
+                        <img src="{{ commit_chart_path }}" alt="Commit History Chart" />
+                    </div>
+                </section>
+                {% endif %}
+
+                {% if most_starred_repos %}
+                <section class="card">
+                    <h2 class="card-title">Top Projekte ⭐</h2>
+                    <ul class="repo-list">
+                        {% for repo in most_starred_repos %}
+                        <li class="repo-item">
+                            <div class="repo-details">
+                                <a href="{{ repo.url }}" target="_blank">{{ repo.name }}</a>
+                                <p>{{ repo.description }}</p>
+                            </div>
+                            <div class="repo-meta">
+                                {% if repo.language %}<span>{{ repo.language }}</span>{% endif %}
+                                <span>⭐ {{ repo.stars }}</span>
+                                <span>🍴 {{ repo.forks }}</span>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+                {% endif %}
+            </div>
+
+            <div class="sidebar-column">
+                <section class="card">
+                    <h2 class="card-title">Profil-Details</h2>
+                    <ul class="profile-details-list">
+                        <li><strong>Follower:</strong> {{ USER_FOLLOWERS }}</li>
+                        <li><strong>Mitglied seit:</strong> {{ USER_CREATED_AT }}</li>
+                        {% if USER_LOCATION %}<li><strong>Standort:</strong> {{ USER_LOCATION }}</li>{% endif %}
+                        {% if USER_COMPANY %}<li><strong>Firma:</strong> {{ USER_COMPANY }}</li>{% endif %}
+                    </ul>
+                </section>
+
+                {% if language_chart_path %}
+                <section class="card">
+                    <h2 class="card-title">Sprachen</h2>
+                    <div class="chart-wrapper pie-chart">
+                        <img src="{{ language_chart_path }}" alt="Language Statistics Chart" />
+                    </div>
+                </section>
+                {% endif %}
+                
+                {% if top_keywords or top_topics %}
+                <section class="card">
+                    <h2 class="card-title">Technische Keywords & Topics</h2>
+                    <div class="tag-cloud">
+                        {% for keyword, count in top_keywords %}
+                        <span class="tag">{{ keyword }}</span>
+                        {% endfor %}
+                        {% for topic, count in top_topics %}
+                        <span class="tag tag-topic">{{ topic }}</span>
+                        {% endfor %}
+                    </div>
+                </section>
+                {% endif %}
+            </div>
+        </main>
+
+        <footer class="main-footer">
+            <p>Report generiert am {{ GENERATION_DATE }}</p>
+        </footer>
+    </div>
+</body>
+</html>
